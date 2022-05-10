@@ -1,40 +1,37 @@
-#!/bin/sh
-ETMP=/tmp/state_ethinfo
-a=$(ip address | grep ^[0-9] | awk -F: '{print $2}' | sed "s/ //g" | grep '^[e]' | grep -v "@" | grep -v "\.")
-b=$(echo "$a" | wc -l)
+#!/usr/bin/lua
+-- Copyright (C) 2022 Tianling Shen <cnsztl@immortalwrt.org>
 
-echo -n "[" > $ETMP
+local util = require "luci.util"
+local jsonc = require "luci.jsonc"
 
-for i in $(seq 1 $b)
-do
-	h=$(echo '{"face":' )
-	c=$(echo "$a" | sed -n ${i}p)
-	d=$(ethtool $c)
-        face=$(uci show network | grep "$c" | head -n1 |awk -F '.'  '{print $2}' )
-	m=$(ifconfig | grep "$c" | head -n1 | awk -F 'HWaddr ' '{print $2}')
-	e=$(echo "$d" | grep "Link detected" | awk -F: '{printf $2}' | sed 's/^[ \t]*//g')
-	if [ $e = yes ]; then
-		l=1
-	else
-		l=0
-	fi
+local eth_info = {}
+local ifname, stat
+for ifname, stat in pairs(util.ubus("network.device", "status")) do
+	if ifname:match("^(eth%d+)$") == ifname then
+		local status, speed, duplex
 
-	f=$(echo "$d" | grep "Speed" | awk -F: '{printf $2}' | sed 's/^[ \t]*//g' | tr -d "Unknown!")
-	[ -z "$f" ] && f=" - "
+		status = stat.carrier and 1 or 0
 
-	g=$(echo "$d" | grep "Duplex" | awk -F: '{printf $2}' | sed 's/^[ \t]*//g')
-	if [ "$g" == "Full" ]; then
-		x=1
-	else
-		x=0
-	fi
+		if stat.speed:sub(1, 1) == "-" then
+			speed = " - "
+		else
+			speed = stat.speed:sub(1, -2) .. "Mb/s"
+		end
 
+		if stat.carrier and stat.speed:sub(-1) == "F" then
+			duplex = 1
+		else
+			duplex = 0
+		end
 
-	echo -n "$h \"$face\", \"status\": $l, \"name\": \"$c\", \"duplex\": $x, \"speed\": \"$f\", \"mac\": \"$m\"}," >> $ETMP
-done
+		eth_info[#eth_info+1] = { name = ifname, status = status,
+					speed = speed, duplex = duplex }
+	end
+end
 
-sed -i 's/.$//' $ETMP
+table.sort(eth_info,
+	function(a, b)
+		return a.name < b.name
+	end)
 
-echo -n "]" >> $ETMP
-
-cat $ETMP
+print(jsonc.stringify(eth_info))
