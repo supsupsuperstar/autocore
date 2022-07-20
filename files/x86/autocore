@@ -36,5 +36,4 @@ start() {
 			ethtool -K "$i" ufo on
 		}
 	done
-
 } >"/dev/null" 2>&1

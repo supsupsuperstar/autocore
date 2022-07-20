@@ -6,12 +6,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=autocore
-PKG_FLAGS:=nonshared
-PKG_RELEASE:=$(COMMITCOUNT)
-
-PKG_CONFIG_DEPENDS:= \
-	CONFIG_TARGET_bcm27xx \
-	CONFIG_TARGET_bcm53xx
+PKG_VERSION:=1
+PKG_RELEASE:=43
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -50,13 +46,8 @@ endef
 define Package/autocore-arm/install
 	$(call Package/autocore/install/Default,$(1))
 
-ifneq (, $(findstring $(BOARD), ipq40xx))
+ifneq (, $(findstring $(BOARD), ipq40xx ipq806x ipq807x))
 	$(INSTALL_BIN) ./files/arm/tempinfo $(1)/sbin/
-else 
-ifneq (, $(findstring $(BOARD), ipq806x ipq807x))
-	$(INSTALL_BIN) ./files/arm/tempinfo $(1)/sbin/
-	$(INSTALL_BIN) ./files/arm/nssinfo $(1)/sbin/	
-endif
 endif
 endef
 
